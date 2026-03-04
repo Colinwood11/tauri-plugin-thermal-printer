@@ -147,15 +147,14 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 
 ### Rust
 
-```toml
-[dependencies]
-tauri-plugin-thermal-printer = {} # it's not published yet
+```bash
+cargo add tauri-plugin-thermal-printer
 ```
 
 ### Bun / NPM / PNPM
 
 ```bash
-# it's not published yet
+bun add tauri-plugin-thermal-printer
 ```
 
 This library not only contains the connector to the backend. Also adds the types for the print structure...
