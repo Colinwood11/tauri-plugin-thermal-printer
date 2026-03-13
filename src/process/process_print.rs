@@ -56,8 +56,9 @@ impl ProcessPrint {
         }
 
         if self.print_job_context.options.cut_paper {
-            document.extend(PrinterControl::feed_paper(5));
             document.extend(PrinterControl::cut_paper_with_feed(65, 0));
+        } else {
+            document.extend(PrinterControl::feed_paper(5));
         }
 
         if self.print_job_context.options.open_cash_drawer {

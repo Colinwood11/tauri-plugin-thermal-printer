@@ -453,14 +453,12 @@ impl TestPrinter {
         document.extend(TextType::AlignCenter.command());
         document.extend(b"Escanea el QR:\n");
 
-        let qr = QR::new("https://neogestify.com".to_string())
+        let qr = QR::new("https://github.com/luis3132/tauri-plugin-thermal-printer".to_string())
             .set_size(QRSize::Size6)
             .set_error_correction(QRErrorCorrection::M)
             .set_model(QRModel::Model2);
         document.extend(qr.get_command());
 
-        document.extend(b"\n");
-        document.extend(b"neogestify.com\n");
         document.extend(b"\n");
         document.extend(TextType::AlignLeft.command());
         Ok(())
