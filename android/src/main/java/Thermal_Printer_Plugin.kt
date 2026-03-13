@@ -3,62 +3,67 @@ package com.luis3132.thermal_printer
 import android.app.Activity
 import android.util.Log
 import app.tauri.annotation.Command
-import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
-import com.google.gson.Gson
-import org.json.JSONArray
-import org.json.JSONObject
-
-@InvokeArg
-class PingArgs {
-    var value: String? = null
-}
 
 @TauriPlugin
-class Thermal_Printer_Plugin(private val activity: Activity): Plugin(activity) {
-    
+class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) {
+
     private val TAG = "ThermalPrinterPlugin"
-    
+
+    /**
+     * Lista todas las impresoras térmicas disponibles.
+     * NOTA: @Command NO puede ser suspend — Tauri Android no soporta corrutinas directamente.
+     * Las operaciones de red se deben hacer en un hilo separado.
+     */
     @Command
-    suspend fun list_thermal_printers(invoke: Invoke) {
-        Log.d(TAG, "Starting list_thermal_printers command")
-        try {
-            Log.d(TAG, "Creating PrinterDiscovery instance")
-            val printerDiscovery = PrinterDiscovery(activity.applicationContext)
-            
-            Log.d(TAG, "Discovering printers...")
-            val printers = printerDiscovery.discoverAllPrinters()
-            Log.d(TAG, "Found ${printers.size} printers")
-            
-            // Crear un array JSON directamente
-            val printersArray = JSONArray()
-            printers.forEach { printer ->
-                Log.d(TAG, "Processing printer: ${printer.name} (${printer.interfaceType})")
-                val printerObj = JSONObject().apply {
-                    put("name", printer.name)
-                    put("interfaceType", printer.interfaceType)
-                    put("identifier", printer.identifier)
-                    put("status", printer.status)
+    fun list_thermal_printers(invoke: Invoke) {
+        Log.d(TAG, "list_thermal_printers called")
+
+        // Ejecutar en hilo secundario para no bloquear el hilo principal
+        Thread {
+            try {
+                val discovery = PrinterDiscovery(activity.applicationContext)
+                val printers = discovery.discoverAllPrinters()
+
+                Log.d(TAG, "Total printers found: ${printers.size}")
+
+                // Construir JSArray — esto es lo que Tauri deserializa como Vec<PrinterInfo> en Rust
+                val printersArray = JSArray()
+                for (printer in printers) {
+                    val obj = JSObject().apply {
+                        // Los nombres deben coincidir EXACTAMENTE con los campos del struct
+                        // PrinterInfo en models.rs (snake_case por convención Rust/serde)
+                        put("name", printer.name)
+                        put("interface_type", printer.interfaceType)   // snake_case para serde
+                        put("identifier", printer.identifier)
+                        put("status", printer.status)
+                    }
+                    printersArray.put(obj)
                 }
-                printersArray.put(printerObj)
+
+                val result = JSObject()
+                // run_mobile_plugin en Rust espera que el resultado sea el valor raíz,
+                // o un objeto con los campos del tipo de retorno.
+                // Para Vec<PrinterInfo>, Tauri espera un array JSON directamente,
+                // pero run_mobile_plugin lo envuelve — ponemos "printers" si el modelo
+                // en Rust es un wrapper, o resolvemos directamente si es Vec plano.
+                // Basado en tu código Rust: Ok(self.0.run_mobile_plugin("list_thermal_printers", ())?)
+                // Tauri deserializa la respuesta como Vec<PrinterInfo>, por lo que necesitamos
+                // devolver el array en la clave que Tauri usa internamente.
+                // La forma correcta es poner el array en la respuesta directamente:
+                result.put("printers", printersArray)
+
+                Log.d(TAG, "Resolving with ${printers.size} printers")
+                invoke.resolve(result)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error listing printers: ${e.message}", e)
+                invoke.reject("Error listing printers: ${e.message}")
             }
-            
-            Log.d(TAG, "Printers JSON Array: ${printersArray.toString()}")
-            
-            // Retornar el array directamente como string JSON
-            val result = JSObject()
-            result.put("printers", printersArray.toString())
-            
-            Log.d(TAG, "Resolving with result")
-            invoke.resolve(result)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error listing printers", e)
-            Log.e(TAG, "Error message: ${e.message}")
-            Log.e(TAG, "Stack trace: ${e.stackTraceToString()}")
-            invoke.reject("Error listing printers: ${e.message}\nStack: ${e.stackTraceToString()}")
-        }
+        }.start()
     }
 }

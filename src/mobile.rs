@@ -9,6 +9,11 @@ use crate::models::*;
 
 pub const OS_NAME: &str = std::env::consts::OS;
 
+#[derive(Debug, serde::Deserialize)]
+pub struct PrintersResponse {
+    pub printers: Vec<PrinterInfo>,
+}
+
 #[cfg(target_os = "ios")]
 tauri::ios_plugin_binding!(init_plugin_thermal_printer);
 
@@ -29,10 +34,13 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct ThermalPrinter<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> ThermalPrinter<R> {
+    // En mobile.rs cambia list_thermal_printers:
     pub fn list_thermal_printers(&self) -> Result<Vec<PrinterInfo>> {
         if OS_NAME == "android" {
             println!("Listing thermal printers");
-            Ok(self.0.run_mobile_plugin("list_thermal_printers", ())?)
+            let response: PrintersResponse = 
+                self.0.run_mobile_plugin("list_thermal_printers", ())?;
+            Ok(response.printers)
         } else {
             Err(Error::UnsupportedPlatform)
         }
