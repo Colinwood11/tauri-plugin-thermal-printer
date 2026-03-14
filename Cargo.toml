@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-thermal-printer"
-version = "1.0.2"
+version = "1.1.0"
 authors = [ "luis3132" ]
 description = "Plugin for Tauri to send esc/pos commands to thermal_printer"
 edition = "2021"
@@ -21,6 +21,7 @@ thiserror = "2"
 image = "0.24"
 base64 = "0.21"
 chrono = "0.4.43"
+kamadak-exif = "0.5"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 printers = "2.2.1"

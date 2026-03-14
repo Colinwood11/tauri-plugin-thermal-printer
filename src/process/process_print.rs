@@ -443,7 +443,7 @@ impl ProcessPrint {
     fn process_table_fn(&mut self, table: &Table) -> Result<Vec<u8>, String> {
         process_table(
             table,
-            self.print_job_context.paper_size.pixels_width(),
+            self.print_job_context.paper_size.chars_per_line(),
             table.truncate,
         )
     }

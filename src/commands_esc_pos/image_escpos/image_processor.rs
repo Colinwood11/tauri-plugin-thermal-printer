@@ -1,11 +1,33 @@
 use image::{DynamicImage, ImageBuffer, Luma, GenericImageView, Pixel};
 use base64::{Engine as _, engine::general_purpose};
+use exif::{In, Reader, Tag};
+use std::io::Cursor;
 
 /// Procesador de imágenes para impresoras térmicas
 pub struct ImageProcessor;
 
 impl ImageProcessor {
     const THRESHOLD: u8 = 127; // Umbral para convertir a blanco y negro
+
+    fn apply_exif_orientation(img: DynamicImage, image_bytes: &[u8]) -> DynamicImage {
+        let mut cursor = Cursor::new(image_bytes);
+        let orientation = Reader::new()
+            .read_from_container(&mut cursor)
+            .ok()
+            .and_then(|exif| exif.get_field(Tag::Orientation, In::PRIMARY).cloned())
+            .and_then(|field| field.value.get_uint(0));
+
+        match orientation.unwrap_or(1) {
+            2 => img.fliph(),
+            3 => img.rotate180(),
+            4 => img.flipv(),
+            5 => img.rotate90().fliph(),
+            6 => img.rotate90(),
+            7 => img.rotate270().fliph(),
+            8 => img.rotate270(),
+            _ => img,
+        }
+    }
 
     /// Convierte una imagen base64 a DynamicImage
     pub fn base64_to_image(base64_string: &str) -> Result<DynamicImage, String> {
@@ -21,8 +43,9 @@ impl ImageProcessor {
             .decode(image_data)
             .map_err(|e| format!("Error decoding base64: {}", e))?;
 
-        // Cargar imagen
+        // Cargar imagen y corregir orientación EXIF cuando esté disponible.
         image::load_from_memory(&image_bytes)
+            .map(|img| Self::apply_exif_orientation(img, &image_bytes))
             .map_err(|e| format!("Error loading image: {}", e))
     }
 

@@ -23,22 +23,24 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
 
     // Verificar si la suma de anchos excede max_width
     let total_width: i32 = column_widths.iter().sum();
-    
+
     let mut output = Vec::new();
 
     if total_width > max_width {
         // Dividir columnas en grupos que quepan en max_width
         let column_groups = split_columns_into_groups(&column_widths, max_width);
-        
+
         // Procesar header
         if let Some(header) = &table.header {
             if !header.is_empty() {
                 for group in &column_groups {
-                    let group_cells: Vec<_> = group.iter()
+                    let group_cells: Vec<_> = group
+                        .iter()
                         .filter_map(|&idx| header.get(idx))
                         .cloned()
                         .collect();
-                    let group_widths: Vec<i32> = group.iter()
+                    let group_widths: Vec<i32> = group
+                        .iter()
                         .filter_map(|&idx| column_widths.get(idx).copied())
                         .collect();
                     let row_lines = process_row(&group_cells, &group_widths, truncate);
@@ -53,11 +55,13 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
         // Procesar body
         for row in &table.body {
             for group in &column_groups {
-                let group_cells: Vec<_> = group.iter()
+                let group_cells: Vec<_> = group
+                    .iter()
                     .filter_map(|&idx| row.get(idx))
                     .cloned()
                     .collect();
-                let group_widths: Vec<i32> = group.iter()
+                let group_widths: Vec<i32> = group
+                    .iter()
                     .filter_map(|&idx| column_widths.get(idx).copied())
                     .collect();
                 let row_lines = process_row(&group_cells, &group_widths, truncate);
@@ -118,11 +122,19 @@ fn split_columns_into_groups(column_widths: &[i32], max_width: i32) -> Vec<Vec<u
     groups
 }
 
-fn process_row(row: &[crate::models::print_sections::Text], column_widths: &[i32], truncate: bool) -> Vec<String> {
+fn process_row(
+    row: &[crate::models::print_sections::Text],
+    column_widths: &[i32],
+    truncate: bool,
+) -> Vec<String> {
     // Para cada celda, obtener las líneas
     let mut cell_lines: Vec<Vec<String>> = Vec::new();
     for (i, cell) in row.iter().enumerate() {
-        let width = if i < column_widths.len() { column_widths[i] } else { 10 }; // default
+        let width = if i < column_widths.len() {
+            column_widths[i]
+        } else {
+            10
+        }; // default
         let text = remove_accents(&cell.text);
         let lines = if truncate {
             vec![truncate_text(&text, width as usize)]
@@ -140,8 +152,16 @@ fn process_row(row: &[crate::models::print_sections::Text], column_widths: &[i32
     for line_idx in 0..max_lines {
         let mut line = String::new();
         for (i, cell) in cell_lines.iter().enumerate() {
-            let part = if line_idx < cell.len() { &cell[line_idx] } else { "" };
-            let padded = format!("{:<width$}", part, width = *column_widths.get(i).unwrap_or(&10) as usize);
+            let part = if line_idx < cell.len() {
+                &cell[line_idx]
+            } else {
+                ""
+            };
+            let padded = format!(
+                "{:<width$}",
+                part,
+                width = *column_widths.get(i).unwrap_or(&10) as usize
+            );
             line.push_str(&padded);
         }
         result.push(line.trim_end().to_string());
@@ -151,7 +171,7 @@ fn process_row(row: &[crate::models::print_sections::Text], column_widths: &[i32
 }
 
 fn truncate_text(text: &str, width: usize) -> String {
-    if text.len() <= width {
+    if text.chars().count() <= width {
         text.to_string()
     } else {
         text.chars().take(width).collect()
@@ -159,17 +179,27 @@ fn truncate_text(text: &str, width: usize) -> String {
 }
 
 fn wrap_text(text: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![String::new()];
+    }
     let mut lines = Vec::new();
     let mut current = String::new();
     for word in text.split_whitespace() {
-        if current.len() + word.len() + 1 > width {
+        let word_len = word.chars().count();
+        let current_len = current.chars().count();
+        if word_len >= width {
+            // Palabra muy larga: vaciar current primero, luego truncar
             if !current.is_empty() {
                 lines.push(current);
-                current = word.to_string();
-            } else {
-                // Palabra muy larga, truncar
-                lines.push(word.chars().take(width).collect());
+                current = String::new();
             }
+            lines.push(word.chars().take(width).collect());
+        } else if current_len + word_len + 1 > width {
+            // No cabe junto a lo que ya hay: saltar de línea
+            if !current.is_empty() {
+                lines.push(current);
+            }
+            current = word.to_string();
         } else {
             if !current.is_empty() {
                 current.push(' ');
@@ -179,6 +209,9 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
     }
     if !current.is_empty() {
         lines.push(current);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
     }
     lines
 }
