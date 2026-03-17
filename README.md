@@ -7,10 +7,8 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | Linux    | ✅        |
 | macOS    | ✅        |
 | Windows  | ✅        |
-| Android  | ❌        |
+| Android  | ?        |
 | iOS      | ❌        |
-
-For mobile applications, this plugin is currently working on this...
 
 ## Table of Contents
 
@@ -50,13 +48,17 @@ This plugin acts as a **translator** between a user-friendly JavaScript/TypeScri
 ### Architecture
 
 ```
-Frontend (JavaScript/TypeScript) 
+Frontend (JavaScript/TypeScript)
     ↓ (IPC Commands)
-Tauri Core (Rust)
+Tauri Core (Rust)  ←— ESC/POS generation (shared across all platforms)
     ↓ (Platform-specific implementations)
-Operating System (Linux/macOS/Windows)
-    ↓ (Raw binary data)
-Thermal Printer (ESC/POS protocol)
+    ├── Desktop: Operating System (Linux/macOS/Windows)
+    │       ↓ (Raw binary data)
+    │   Thermal Printer (ESC/POS protocol)
+    │
+    └── Android: Kotlin Plugin
+            ↓ (Bluetooth SPP / RFCOMM)
+        Thermal Printer (ESC/POS protocol)
 ```
 
 ### Core Components
@@ -78,19 +80,27 @@ Converts data structures into ESC/POS binary commands:
 pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u8>, String>
 ```
 
-#### 4. **OS Integration** (`src/desktop_printers/`)
+#### 4. **OS Integration** (`src/desktop_printers/` and `android/`)
 - **Linux/macOS**: Uses CUPS system (`lpstat`, `lp` commands)
 - **Windows**: Uses WinAPI (Windows API) to directly access system printers via functions such as EnumPrintersW for listing printers, OpenPrinterW for opening printer handles, and WritePrinter for sending raw data
-- **Android**: Basic structure present, not yet implemented
+- **Android**: Kotlin plugin with Bluetooth SPP and USB printer discovery and printing
 
 ### Workflow
 
-#### Printing a Document:
+#### Printing a Document (Desktop):
 
 1. **Frontend** sends `PrintJobRequest` with sections and configuration
 2. **Tauri** receives the command and processes it in Rust
 3. **`ProcessPrint`** converts each section into ESC/POS commands
 4. **Operating System** sends binary data to the printer
+5. **Thermal Printer** interprets ESC/POS commands and prints
+
+#### Printing a Document (Android):
+
+1. **Frontend** sends `PrintJobRequest` with sections and configuration
+2. **Rust** generates ESC/POS binary data using the same `ProcessPrint` pipeline
+3. **Kotlin plugin** receives the binary data and the printer MAC address
+4. **Bluetooth SPP** connection is established to the printer
 5. **Thermal Printer** interprets ESC/POS commands and prints
 
 #### Print Structure Example:
@@ -133,15 +143,18 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 - ✅ **Linux**: Fully functional (CUPS)
 - ✅ **macOS**: Fully functional (CUPS)
 - ✅ **Windows**: Fully functional (WinAPI)
-- ❌ **Android**: Basic structure present, not implemented
+- ✅ **Android**: Bluetooth and USB printer discovery and printing
 - ❌ **iOS**: Not implemented
 
 ### Supported Connections
 
-- **USB**: Direct USB port connection
-- **Network**: TCP/IP (port 9100 typical)
-- **Serial**: RS-232 (less common)
-- **Bluetooth**: For Android (when implemented)
+| Connection | Linux | macOS | Windows | Android |
+| ---------- | ----- | ----- | ------- | ------- |
+| USB        | ✅    | ✅    | ✅      | ✅ (discovery only) |
+| Network    | ✅    | ✅    | ✅      | ❌      |
+| Bluetooth  | ❌    | ❌    | ❌      | ✅      |
+
+> **Android note**: The `printer` field in `PrintJobRequest` must be the Bluetooth MAC address of the printer (e.g. `"AA:BB:CC:DD:EE:FF"`). The printer must be previously paired in the Android Bluetooth settings. Bluetooth permissions are requested automatically at runtime.
 
 ## Installation
 
