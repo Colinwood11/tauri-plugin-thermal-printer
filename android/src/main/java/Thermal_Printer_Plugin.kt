@@ -8,8 +8,25 @@ import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
+import app.tauri.annotation.Permission
+import android.Manifest
+import android.os.Build
 
-@TauriPlugin
+@TauriPlugin(
+    permissions = [
+        Permission(
+            strings = [
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ],
+            alias = "bluetooth"
+        )
+    ]
+)
 class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) {
 
     private val TAG = "ThermalPrinterPlugin"

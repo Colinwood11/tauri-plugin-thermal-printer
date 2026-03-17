@@ -11,18 +11,18 @@ import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
-import java.net.InetSocketAddress
-import java.net.Socket
+import java.net.NetworkInterface
+import java.util.Collections
 
 /**
- * Información de una impresora descubierta.
- * Los nombres de campo deben coincidir con el struct PrinterInfo en models.rs
+ * Información de una impresora descubierta. Los nombres de campo deben coincidir con el struct
+ * PrinterInfo en models.rs
  */
 data class ThermalPrinterInfo(
-    val name: String,
-    val interfaceType: String,   // se serializa como "interface_type" vía JSObject
-    val identifier: String,
-    val status: String
+        val name: String,
+        val interfaceType: String, // se serializa como "interface_type" vía JSObject
+        val identifier: String,
+        val status: String
 )
 
 class PrinterDiscovery(private val context: Context) {
@@ -34,12 +34,13 @@ class PrinterDiscovery(private val context: Context) {
     }
 
     private val bluetoothAdapter by lazy {
-        val manager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            context.getSystemService(BluetoothManager::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        }
+        val manager =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    context.getSystemService(BluetoothManager::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+                }
         manager?.adapter
     }
 
@@ -50,23 +51,20 @@ class PrinterDiscovery(private val context: Context) {
     fun discoverAllPrinters(): List<ThermalPrinterInfo> {
         val printers = mutableListOf<ThermalPrinterInfo>()
 
-        safeDiscover("USB") { discoverUsbPrinters() }
-            .let { printers.addAll(it) }
+        safeDiscover("USB") { discoverUsbPrinters() }.let { printers.addAll(it) }
 
-        safeDiscover("Bluetooth") { discoverBluetoothPrinters() }
-            .let { printers.addAll(it) }
+        safeDiscover("Bluetooth") { discoverBluetoothPrinters() }.let { printers.addAll(it) }
 
         // Descomentar para incluir escaneo de red (lento ~25 segundos)
-        // safeDiscover("Network") { scanNetworkPrinters() }
-        //     .let { printers.addAll(it) }
+        // safeDiscover("Network") { scanNetworkPrinters() }.let { printers.addAll(it) }
 
         Log.d(TAG, "Total printers found: ${printers.size}")
         return printers
     }
 
     private fun safeDiscover(
-        type: String,
-        block: () -> List<ThermalPrinterInfo>
+            type: String,
+            block: () -> List<ThermalPrinterInfo>
     ): List<ThermalPrinterInfo> {
         return try {
             val result = block()
@@ -88,23 +86,24 @@ class PrinterDiscovery(private val context: Context) {
         Log.d(TAG, "USB devices found: ${deviceList.size}")
 
         for (device in deviceList.values) {
-            Log.d(TAG,
-                "USB device — name=${device.productName} " +
-                "VID=${device.vendorId} PID=${device.productId} " +
-                "class=${device.deviceClass}"
+            Log.d(
+                    TAG,
+                    "USB device — name=${device.productName} " +
+                            "VID=${device.vendorId} PID=${device.productId} " +
+                            "class=${device.deviceClass}"
             )
 
             if (device.deviceClass == USB_CLASS_PRINTER || hasUsbPrinterInterface(device)) {
                 printers.add(
-                    ThermalPrinterInfo(
-                        name       = device.productName
-                                        ?: device.manufacturerName
-                                        ?: "USB Printer",
-                        interfaceType = "USB",
-                        identifier = "VID:${device.vendorId}/PID:${device.productId}",
-                        status     = if (usbManager.hasPermission(device)) "Connected"
-                                     else "Permission Required"
-                    )
+                        ThermalPrinterInfo(
+                                name = device.productName
+                                                ?: device.manufacturerName ?: "USB Printer",
+                                interfaceType = "USB",
+                                identifier = "VID:${device.vendorId}/PID:${device.productId}",
+                                status =
+                                        if (usbManager.hasPermission(device)) "Connected"
+                                        else "Permission Required"
+                        )
                 )
             }
         }
@@ -124,10 +123,12 @@ class PrinterDiscovery(private val context: Context) {
 
     private fun discoverBluetoothPrinters(): List<ThermalPrinterInfo> {
         val printers = mutableListOf<ThermalPrinterInfo>()
-        val adapter = bluetoothAdapter ?: run {
-            Log.w(TAG, "Bluetooth adapter not available")
-            return printers
-        }
+        val adapter =
+                bluetoothAdapter
+                        ?: run {
+                            Log.w(TAG, "Bluetooth adapter not available")
+                            return printers
+                        }
 
         if (!adapter.isEnabled) {
             Log.w(TAG, "Bluetooth disabled")
@@ -137,8 +138,9 @@ class PrinterDiscovery(private val context: Context) {
         // Verificar permisos en Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ActivityCompat.checkSelfPermission(
-                    context, Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
+                            context,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                    ) != PackageManager.PERMISSION_GRANTED
             ) {
                 Log.w(TAG, "BLUETOOTH_CONNECT permission not granted")
                 return printers
@@ -154,25 +156,27 @@ class PrinterDiscovery(private val context: Context) {
                 val name = device.name ?: ""
                 Log.d(TAG, "BT device — name=$name class=$deviceClass addr=${device.address}")
 
-                val isPrinter = deviceClass == BluetoothClass.Device.Major.IMAGING ||
+                val isPrinter =
+                        deviceClass == BluetoothClass.Device.Major.IMAGING ||
                                 deviceClass == BT_PRINTER_CLASS ||
                                 name.contains("printer", ignoreCase = true) ||
-                                name.contains("print",   ignoreCase = true)  ||
-                                name.contains("POS",     ignoreCase = true)  ||
+                                name.contains("print", ignoreCase = true) ||
+                                name.contains("POS", ignoreCase = true) ||
                                 name.contains("thermal", ignoreCase = true)
 
                 if (isPrinter) {
                     printers.add(
-                        ThermalPrinterInfo(
-                            name       = name.ifBlank { "Bluetooth Printer" },
-                            interfaceType = "Bluetooth",
-                            identifier = device.address,
-                            status     = when (device.bondState) {
-                                BluetoothDevice.BOND_BONDED  -> "Paired"
-                                BluetoothDevice.BOND_BONDING -> "Pairing"
-                                else                         -> "Not Paired"
-                            }
-                        )
+                            ThermalPrinterInfo(
+                                    name = name.ifBlank { "Bluetooth Printer" },
+                                    interfaceType = "Bluetooth",
+                                    identifier = device.address,
+                                    status =
+                                            when (device.bondState) {
+                                                BluetoothDevice.BOND_BONDED -> "Paired"
+                                                BluetoothDevice.BOND_BONDING -> "Pairing"
+                                                else -> "Not Paired"
+                                            }
+                            )
                     )
                 }
             } catch (e: Exception) {
@@ -187,47 +191,71 @@ class PrinterDiscovery(private val context: Context) {
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * Escanea un rango de IPs buscando impresoras en el puerto 9100.
-     * Llama a este método en un thread separado — puede tomar ~25 s para /24.
-     * Puedes reducir el rango para acelerar.
+     * Escanea un rango de IPs buscando impresoras en el puerto 9100. Llama a este método en un
+     * thread separado — puede tomar ~25 s para /24. Puedes reducir el rango para acelerar.
      */
-    fun scanNetworkPrinters(
-        subnet: String = "192.168.1",
-        start: Int = 1,
-        end: Int = 254,
-        port: Int = 9100,
-        connectTimeoutMs: Int = 200
-    ): List<ThermalPrinterInfo> {
-        val printers = mutableListOf<ThermalPrinterInfo>()
-        Log.d(TAG, "Network scan: $subnet.$start-$end port $port")
+    // fun scanNetworkPrinters(
+    //     subnet: String? = null,
+    //     start: Int = 1,
+    //     end: Int = 254,
+    //     port: Int = 9100,
+    //     connectTimeoutMs: Int = 200
+    // ): List<ThermalPrinterInfo> {
+    //     val activeSubnet = subnet ?: getLocalSubnet() ?: "192.168.1"
+    //     val printers = mutableListOf<ThermalPrinterInfo>()
+    //     Log.d(TAG, "Network scan: $activeSubnet.$start-$end port $port")
 
-        for (i in start..end) {
-            val ip = "$subnet.$i"
-            try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress(ip, port), connectTimeoutMs)
-                    // Si no lanza excepción, el puerto está abierto → impresora de red
-                    Log.d(TAG, "Network printer found at $ip:$port")
-                    printers.add(
-                        ThermalPrinterInfo(
-                            name          = "Network Printer @ $ip",
-                            interfaceType = "Network",
-                            identifier    = "$ip:$port",
-                            status        = "Available"
-                        )
-                    )
+    //     for (i in start..end) {
+    //         val ip = "$activeSubnet.$i"
+    //         try {
+    //             Socket().use { socket ->
+    //                 socket.connect(InetSocketAddress(ip, port), connectTimeoutMs)
+    //                 // Si no lanza excepción, el puerto está abierto → impresora de red
+    //                 Log.d(TAG, "Network printer found at $ip:$port")
+    //                 printers.add(
+    //                     ThermalPrinterInfo(
+    //                         name          = "Network Printer @ $ip",
+    //                         interfaceType = "Network",
+    //                         identifier    = "$ip:$port",
+    //                         status        = "Available"
+    //                     )
+    //                 )
+    //             }
+    //         } catch (_: Exception) {
+    //             // Host no alcanzable o puerto cerrado — ignorar
+    //         }
+    //     }
+
+    //     Log.d(TAG, "Network scan finished. Found ${printers.size} printer(s)")
+    //     return printers
+    // }
+
+    private fun getLocalSubnet(): String? {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (intf in Collections.list(interfaces)) {
+                for (addr in Collections.list(intf.inetAddresses)) {
+                    if (!addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                        val sAddr = addr.hostAddress
+                        // Ignorar IPv6 (que contienen ':')
+                        if (sAddr != null && sAddr.indexOf(':') < 0) {
+                            Log.d(TAG, "Local IP detected: $sAddr")
+                            val lastDot = sAddr.lastIndexOf('.')
+                            if (lastDot > 0) {
+                                return sAddr.substring(0, lastDot)
+                            }
+                        }
+                    }
                 }
-            } catch (_: Exception) {
-                // Host no alcanzable o puerto cerrado — ignorar
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error discovering local subnet: ${e.message}")
         }
-
-        Log.d(TAG, "Network scan finished. Found ${printers.size} printer(s)")
-        return printers
+        return null
     }
 
     companion object {
         private const val USB_CLASS_PRINTER = 7
-        private const val BT_PRINTER_CLASS  = 1664  // 0x0680 — Imaging / Printer
+        private const val BT_PRINTER_CLASS = 1664 // 0x0680 — Imaging / Printer
     }
 }
