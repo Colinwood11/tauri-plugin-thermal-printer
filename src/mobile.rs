@@ -6,12 +6,20 @@ use tauri::{
 
 use crate::error::{Error, Result};
 use crate::models::*;
+use crate::process::process_print::ProcessPrint;
+use crate::process::process_print_test::TestPrinter;
 
 pub const OS_NAME: &str = std::env::consts::OS;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct PrintersResponse {
     pub printers: Vec<PrinterInfo>,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct PrintRawRequest {
+    identifier: String,
+    data: Vec<u8>,
 }
 
 #[cfg(target_os = "ios")]
@@ -34,11 +42,10 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct ThermalPrinter<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> ThermalPrinter<R> {
-    // En mobile.rs cambia list_thermal_printers:
     pub fn list_thermal_printers(&self) -> Result<Vec<PrinterInfo>> {
         if OS_NAME == "android" {
             println!("Listing thermal printers");
-            let response: PrintersResponse = 
+            let response: PrintersResponse =
                 self.0.run_mobile_plugin("list_thermal_printers", ())?;
             Ok(response.printers)
         } else {
@@ -46,16 +53,26 @@ impl<R: Runtime> ThermalPrinter<R> {
         }
     }
 
-    pub fn print_thermal_printer(&self, _print_job_request: PrintJobRequest) -> Result<()> {
+    pub fn print_thermal_printer(&self, print_job_request: PrintJobRequest) -> Result<()> {
         if OS_NAME == "android" {
+            let identifier = print_job_request.printer.clone();
+            let data = ProcessPrint::new()
+                .generate_document(&print_job_request)
+                .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
+            let _: () = self.0.run_mobile_plugin("print_raw_data", PrintRawRequest { identifier, data })?;
             Ok(())
         } else {
             Err(Error::UnsupportedPlatform)
         }
     }
 
-    pub fn test_thermal_printer(&self, _print_job_request: TestPrintRequest) -> Result<()> {
+    pub fn test_thermal_printer(&self, print_job_request: TestPrintRequest) -> Result<()> {
         if OS_NAME == "android" {
+            let identifier = print_job_request.printer_info.printer.clone();
+            let data = TestPrinter::new()
+                .generate_test_document(&print_job_request)
+                .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
+            let _: () = self.0.run_mobile_plugin("print_raw_data", PrintRawRequest { identifier, data })?;
             Ok(())
         } else {
             Err(Error::UnsupportedPlatform)

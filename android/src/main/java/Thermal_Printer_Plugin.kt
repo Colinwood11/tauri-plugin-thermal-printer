@@ -2,15 +2,18 @@ package com.luis3132.thermal_printer
 
 import android.app.Activity
 import android.util.Log
+import app.tauri.PermissionState
 import app.tauri.annotation.Command
+import app.tauri.annotation.Permission
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
-import app.tauri.plugin.Invoke
-import app.tauri.annotation.Permission
 import android.Manifest
-import android.os.Build
+import org.json.JSONArray
+import org.json.JSONException
 
 @TauriPlugin(
     permissions = [
@@ -31,16 +34,32 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
 
     private val TAG = "ThermalPrinterPlugin"
 
-    /**
-     * Lista todas las impresoras térmicas disponibles.
-     * NOTA: @Command NO puede ser suspend — Tauri Android no soporta corrutinas directamente.
-     * Las operaciones de red se deben hacer en un hilo separado.
-     */
+    // ─────────────────────────────────────────────────────────────
+    // list_thermal_printers
+    // ─────────────────────────────────────────────────────────────
+
     @Command
     fun list_thermal_printers(invoke: Invoke) {
         Log.d(TAG, "list_thermal_printers called")
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            Log.d(TAG, "Requesting bluetooth permissions")
+            requestPermissionForAlias("bluetooth", invoke, "bluetoothListPermissionCallback")
+            return
+        }
+        doListPrinters(invoke)
+    }
 
-        // Ejecutar en hilo secundario para no bloquear el hilo principal
+    @PermissionCallback
+    fun bluetoothListPermissionCallback(invoke: Invoke) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            Log.w(TAG, "Bluetooth permission denied")
+            invoke.reject("Bluetooth permission denied")
+            return
+        }
+        doListPrinters(invoke)
+    }
+
+    private fun doListPrinters(invoke: Invoke) {
         Thread {
             try {
                 val discovery = PrinterDiscovery(activity.applicationContext)
@@ -48,14 +67,11 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
 
                 Log.d(TAG, "Total printers found: ${printers.size}")
 
-                // Construir JSArray — esto es lo que Tauri deserializa como Vec<PrinterInfo> en Rust
                 val printersArray = JSArray()
                 for (printer in printers) {
                     val obj = JSObject().apply {
-                        // Los nombres deben coincidir EXACTAMENTE con los campos del struct
-                        // PrinterInfo en models.rs (snake_case por convención Rust/serde)
                         put("name", printer.name)
-                        put("interface_type", printer.interfaceType)   // snake_case para serde
+                        put("interface_type", printer.interfaceType)
                         put("identifier", printer.identifier)
                         put("status", printer.status)
                     }
@@ -63,15 +79,6 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
                 }
 
                 val result = JSObject()
-                // run_mobile_plugin en Rust espera que el resultado sea el valor raíz,
-                // o un objeto con los campos del tipo de retorno.
-                // Para Vec<PrinterInfo>, Tauri espera un array JSON directamente,
-                // pero run_mobile_plugin lo envuelve — ponemos "printers" si el modelo
-                // en Rust es un wrapper, o resolvemos directamente si es Vec plano.
-                // Basado en tu código Rust: Ok(self.0.run_mobile_plugin("list_thermal_printers", ())?)
-                // Tauri deserializa la respuesta como Vec<PrinterInfo>, por lo que necesitamos
-                // devolver el array en la clave que Tauri usa internamente.
-                // La forma correcta es poner el array en la respuesta directamente:
                 result.put("printers", printersArray)
 
                 Log.d(TAG, "Resolving with ${printers.size} printers")
@@ -80,6 +87,61 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
             } catch (e: Exception) {
                 Log.e(TAG, "Error listing printers: ${e.message}", e)
                 invoke.reject("Error listing printers: ${e.message}")
+            }
+        }.start()
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // print_raw_data
+    // ─────────────────────────────────────────────────────────────
+
+    @Command
+    fun print_raw_data(invoke: Invoke) {
+        Log.d(TAG, "print_raw_data called")
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            Log.d(TAG, "Requesting bluetooth permissions for printing")
+            requestPermissionForAlias("bluetooth", invoke, "bluetoothPrintPermissionCallback")
+            return
+        }
+        doPrintRawData(invoke)
+    }
+
+    @PermissionCallback
+    fun bluetoothPrintPermissionCallback(invoke: Invoke) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            Log.w(TAG, "Bluetooth permission denied for printing")
+            invoke.reject("Bluetooth permission denied")
+            return
+        }
+        doPrintRawData(invoke)
+    }
+
+    private fun doPrintRawData(invoke: Invoke) {
+        Thread {
+            try {
+                val args = invoke.getArgs()
+
+                val identifier = args.getString("identifier", null)
+                    ?: return@Thread invoke.reject("Missing printer identifier")
+
+                val dataArray: JSONArray = try {
+                    args.getJSONArray("data")
+                } catch (e: JSONException) {
+                    return@Thread invoke.reject("Missing print data")
+                }
+
+                val bytes = ByteArray(dataArray.length()) { i -> dataArray.getInt(i).toByte() }
+
+                Log.d(TAG, "Printing to $identifier (${bytes.size} bytes)")
+
+                val printer = BluetoothPrinter(activity.applicationContext)
+                printer.printRawData(identifier, bytes)
+
+                invoke.resolve()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Print error: ${e.message}", e)
+                invoke.reject("Print error: ${e.message}")
             }
         }.start()
     }
