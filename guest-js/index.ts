@@ -376,6 +376,43 @@ export interface TestPrintRequest {
   test_rotate?: boolean
 }
 
+// ─── Helper builders ──────────────────────────────────────────────────────────
+
+/** Creates a Title section */
+export function title(text: string, styles?: GlobalStyles): PrintSections {
+  return { Title: { text, styles } }
+}
+
+/** Creates a Subtitle section */
+export function subtitle(text: string, styles?: GlobalStyles): PrintSections {
+  return { Subtitle: { text, styles } }
+}
+
+/** Creates a Text section */
+export function text(text: string, styles?: GlobalStyles): PrintSections {
+  return { Text: { text, styles } }
+}
+
+/** Creates a Line separator section */
+export function line(character: string = '-'): PrintSections {
+  return { Line: { character } }
+}
+
+/** Creates a Feed section */
+export function feed(value: number, feed_type: FeedType = 'lines'): PrintSections {
+  return { Feed: { feed_type, value } }
+}
+
+/** Creates a Cut section */
+export function cut(mode: CutMode = 'partial', feedLines: number = 4): PrintSections {
+  return { Cut: { mode, feed: feedLines } }
+}
+
+/** Creates a GlobalStyles section — affects all subsequent sections until changed */
+export function globalStyles(styles: GlobalStyles): PrintSections {
+  return { GlobalStyles: styles }
+}
+
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 /**
