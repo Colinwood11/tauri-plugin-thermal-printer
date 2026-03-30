@@ -1,4 +1,5 @@
 use super::image_mode::ImageMode;
+use crate::models::print_sections::Logo as LogoSection;
 // use super::image_processor::ImageProcessor;
 
 /// Clase para manejar logos guardados en la memoria de la impresora.
@@ -34,7 +35,25 @@ impl Logo {
             self.mode.value(), // m (mode)
         ]
     }
+}
 
+/// Procesa sección Logo del modelo de impresión
+pub fn process_section(logo: &LogoSection) -> Result<Vec<u8>, String> {
+    let mode = match logo.mode.as_str() {
+        "normal" => ImageMode::Normal,
+        "double_width" => ImageMode::DoubleWidth,
+        "double_height" => ImageMode::DoubleHeight,
+        "quadruple" => ImageMode::Quadruple,
+        _ => ImageMode::Normal,
+    };
+
+    let esc_pos_logo = Logo::new(logo.key_code).set_mode(mode);
+    let mut data = esc_pos_logo.get_print_command();
+    data.extend_from_slice(b"\n");
+    Ok(data)
+}
+
+impl Logo {
     // /// Comando para guardar una imagen como logo en memoria NV
     // /// Nota: Este comando requiere que la imagen ya esté procesada
     // /// 

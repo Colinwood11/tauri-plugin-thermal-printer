@@ -1,7 +1,7 @@
-
 use super::image_alignment::ImageAlignment;
 use super::image_mode::ImageMode;
 use super::image_processor::ImageProcessor;
+use crate::models::print_sections::Image as ImageSection;
 
 /// Constructor de comandos para imágenes
 #[derive(Debug, Clone)]
@@ -86,7 +86,47 @@ impl Image {
 
         Ok(output)
     }
+}
 
+/// Procesa sección Image del modelo de impresión
+pub fn process_section(imagen: &ImageSection, paper_width_pixels: i32) -> Result<Vec<u8>, String> {
+    if imagen.data.is_empty() {
+        return Err("Image data cannot be empty".to_string());
+    }
+
+    let alignment = match imagen.align.as_str() {
+        "left" => ImageAlignment::Left,
+        "center" => ImageAlignment::Center,
+        "right" => ImageAlignment::Right,
+        _ => ImageAlignment::Center,
+    };
+
+    let mode = match imagen.size.as_str() {
+        "normal" => ImageMode::Normal,
+        "double_width" => ImageMode::DoubleWidth,
+        "double_height" => ImageMode::DoubleHeight,
+        "quadruple" => ImageMode::Quadruple,
+        _ => ImageMode::Normal,
+    };
+
+    let max_width = if imagen.max_width > paper_width_pixels || imagen.max_width <= 0 {
+        paper_width_pixels as u32
+    } else {
+        imagen.max_width as u32
+    };
+
+    let image = Image::new(&imagen.data, max_width)
+        .map_err(|e| format!("Failed to create image: {}", e))?
+        .set_alignment(alignment)
+        .set_mode(mode)
+        .set_use_dithering(imagen.dithering);
+
+    let mut cmd = image.get_command()?;
+    cmd.extend_from_slice(b"\n");
+    Ok(cmd)
+}
+
+impl Image {
     // /// Método alternativo usando modo bit image (ESC *)
     // /// Útil para impresoras más antiguas que no soportan GS v 0
     // /// NOTA: Este método puede no ser compatible con todas las impresoras móviles

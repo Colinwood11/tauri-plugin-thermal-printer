@@ -1,4 +1,5 @@
 use super::data_matrix_size::DataMatrixSize;
+use crate::models::print_sections::DataMatrixModel;
 
 /// Constructor de comandos para códigos DataMatrix
 /// 
@@ -83,7 +84,37 @@ impl DataMatrix {
 
         output
     }
+}
 
+/// Procesa sección DataMatrix del modelo de impresión
+pub fn process_section(data_matrix: &DataMatrixModel) -> Result<Vec<u8>, String> {
+    let size = match data_matrix.size {
+        1 => DataMatrixSize::Size1,
+        2 => DataMatrixSize::Size2,
+        3 => DataMatrixSize::Size3,
+        4 => DataMatrixSize::Size4,
+        5 => DataMatrixSize::Size5,
+        6 => DataMatrixSize::Size6,
+        7 => DataMatrixSize::Size7,
+        8 => DataMatrixSize::Size8,
+        9 => DataMatrixSize::Size9,
+        10 => DataMatrixSize::Size10,
+        11 => DataMatrixSize::Size11,
+        12 => DataMatrixSize::Size12,
+        13 => DataMatrixSize::Size13,
+        14 => DataMatrixSize::Size14,
+        15 => DataMatrixSize::Size15,
+        16 => DataMatrixSize::Size16,
+        _ => DataMatrixSize::Size6,
+    };
+
+    let esc_pos_dm = DataMatrix::new(data_matrix.data.clone()).set_size(size);
+    let mut data = esc_pos_dm.get_command();
+    data.extend_from_slice(b"\n");
+    Ok(data)
+}
+
+impl DataMatrix {
     // /// Verifica si la impresora soporta DataMatrix
     // /// Retorna un comando de consulta (no todas las impresoras responden)
     // pub fn check_support() -> Vec<u8> {

@@ -1,6 +1,8 @@
+use super::qr_error_correction::QRErrorCorrection;
 use super::qr_model::QRModel;
 use super::qr_size::QRSize;
-use super::qr_error_correction::QRErrorCorrection;
+use crate::commands_esc_pos::text::text_type::get_styles_diff;
+use crate::models::print_sections::{GlobalStyles, Qr};
 
 /// Constructor de comandos para códigos QR
 #[derive(Debug, Clone)]
@@ -124,5 +126,74 @@ impl QR {
 
         output
     }
+}
 
+/// Procesa sección Qr del modelo de impresión
+pub fn process_section(qr: &Qr, current_styles: &GlobalStyles) -> Result<Vec<u8>, String> {
+    if qr.data.is_empty() {
+        return Err("QR data cannot be empty".to_string());
+    }
+
+    let error_correction = match qr.error_correction.as_str() {
+        "L" => QRErrorCorrection::L,
+        "M" => QRErrorCorrection::M,
+        "Q" => QRErrorCorrection::Q,
+        "H" => QRErrorCorrection::H,
+        _ => QRErrorCorrection::M,
+    };
+
+    if qr.data.len() > error_correction.max_data_len() {
+        return Err(format!(
+            "QR data length {} exceeds maximum {} for error correction level '{}'",
+            qr.data.len(),
+            error_correction.max_data_len(),
+            qr.error_correction
+        ));
+    }
+
+    let model = if qr.model == 1 {
+        QRModel::Model1
+    } else {
+        QRModel::Model2
+    };
+
+    let size = match qr.size {
+        1 => QRSize::Size1,
+        2 => QRSize::Size2,
+        3 => QRSize::Size3,
+        4 => QRSize::Size4,
+        5 => QRSize::Size5,
+        6 => QRSize::Size6,
+        7 => QRSize::Size7,
+        8 => QRSize::Size8,
+        9 => QRSize::Size9,
+        10 => QRSize::Size10,
+        11 => QRSize::Size11,
+        12 => QRSize::Size12,
+        13 => QRSize::Size13,
+        14 => QRSize::Size14,
+        15 => QRSize::Size15,
+        16 => QRSize::Size16,
+        _ => QRSize::Size6,
+    };
+
+    let esc_pos_qr = QR::new(qr.data.clone())
+        .set_model(model)
+        .set_size(size)
+        .set_error_correction(error_correction);
+
+    let mut data = Vec::new();
+    if let Some(ref align) = qr.align {
+        let mut temp_styles = current_styles.clone();
+        temp_styles.align = Some(align.clone());
+        data.extend_from_slice(&get_styles_diff(current_styles, &temp_styles));
+        data.extend_from_slice(&esc_pos_qr.get_command());
+        data.extend_from_slice(b"\n");
+        data.extend_from_slice(&get_styles_diff(&temp_styles, current_styles));
+    } else {
+        data.extend_from_slice(&esc_pos_qr.get_command());
+        data.extend_from_slice(b"\n");
+    }
+
+    Ok(data)
 }

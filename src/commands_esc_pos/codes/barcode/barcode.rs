@@ -1,5 +1,7 @@
-use super::barcode_type::BarcodeType;
 use super::barcode_text_position::BarcodeTextPosition;
+use super::barcode_type::BarcodeType;
+use crate::commands_esc_pos::text::text_type::get_styles_diff;
+use crate::models::print_sections::{Barcode as BarcodeSection, GlobalStyles};
 
 /// Constructor de comandos para códigos de barras
 #[derive(Debug, Clone)]
@@ -87,7 +89,71 @@ impl Barcode {
 
         output
     }
+}
 
+/// Procesa sección Barcode del modelo de impresión
+pub fn process_section(
+    barcode: &BarcodeSection,
+    current_styles: &GlobalStyles,
+) -> Result<Vec<u8>, String> {
+    if barcode.data.is_empty() {
+        return Err("Barcode data cannot be empty".to_string());
+    }
+    if barcode.height == 0 {
+        return Err("Barcode height must be greater than 0".to_string());
+    }
+
+    let barcode_type = match barcode.barcode_type.as_str() {
+        "UPC-A" => BarcodeType::UpcA,
+        "UPC-E" => BarcodeType::UpcE,
+        "EAN13" => BarcodeType::Ean13,
+        "EAN8" => BarcodeType::Ean8,
+        "CODE39" => BarcodeType::Code39,
+        "ITF" => BarcodeType::Itf,
+        "CODABAR" => BarcodeType::Codabar,
+        "CODE93" => BarcodeType::Code93,
+        "CODE128" => BarcodeType::Code128,
+        _ => BarcodeType::Code128,
+    };
+
+    if barcode_type.requires_numeric_data()
+        && !barcode.data.chars().all(|c| c.is_ascii_digit())
+    {
+        return Err(format!(
+            "Barcode type '{}' only accepts numeric digits",
+            barcode.barcode_type
+        ));
+    }
+
+    let text_position = match barcode.text_position.as_str() {
+        "none" => BarcodeTextPosition::NotPrinted,
+        "above" => BarcodeTextPosition::Above,
+        "below" => BarcodeTextPosition::Below,
+        "both" => BarcodeTextPosition::Both,
+        _ => BarcodeTextPosition::NotPrinted,
+    };
+
+    let esc_pos_barcode = Barcode::new(barcode_type, barcode.data.clone())
+        .set_height(barcode.height)
+        .set_width(barcode.width)
+        .set_text_position(text_position);
+
+    let mut data = Vec::new();
+    if let Some(ref align) = barcode.align {
+        let mut temp_styles = current_styles.clone();
+        temp_styles.align = Some(align.clone());
+        data.extend_from_slice(&get_styles_diff(current_styles, &temp_styles));
+        data.extend_from_slice(&esc_pos_barcode.get_command());
+        data.extend_from_slice(b"\n");
+        data.extend_from_slice(&get_styles_diff(&temp_styles, current_styles));
+    } else {
+        data.extend_from_slice(&esc_pos_barcode.get_command());
+        data.extend_from_slice(b"\n");
+    }
+    Ok(data)
+}
+
+impl Barcode {
     // /// Método alternativo usando formato con NUL terminator (para impresoras antiguas)
     // /// Usa el método 1 con terminador NULL
     // pub fn get_command_legacy(&self) -> Vec<u8> {

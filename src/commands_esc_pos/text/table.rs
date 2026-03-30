@@ -1,5 +1,42 @@
 use crate::models::print_sections::Table;
 
+/// Valida y procesa sección Table del modelo de impresión
+pub fn process_section(table: &Table, chars_per_line: i32) -> Result<Vec<u8>, String> {
+    let num_columns = table.columns as usize;
+
+    if let Some(widths) = &table.column_widths {
+        let total: i32 = widths.iter().map(|&w| w as i32).sum();
+        if total != chars_per_line {
+            return Err(format!(
+                "column_widths sum ({}) must equal paper chars_per_line ({})",
+                total, chars_per_line
+            ));
+        }
+    }
+
+    if let Some(header) = &table.header {
+        if !header.is_empty() && header.len() != num_columns {
+            return Err(format!(
+                "Table header has {} cells but {} columns declared",
+                header.len(),
+                num_columns
+            ));
+        }
+    }
+    for (row_idx, row) in table.body.iter().enumerate() {
+        if row.len() != num_columns {
+            return Err(format!(
+                "Table row {} has {} cells but {} columns declared",
+                row_idx,
+                row.len(),
+                num_columns
+            ));
+        }
+    }
+
+    process_table(table, chars_per_line, table.truncate)
+}
+
 pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Vec<u8>, String> {
     if table.columns == 0 {
         return Ok(Vec::new());

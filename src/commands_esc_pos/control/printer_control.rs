@@ -1,3 +1,5 @@
+use crate::models::print_sections::{Beep, Cut, Drawer, Feed};
+
 /// ESC/POS GS V mode byte for partial cut (also used as default)
 pub const CUT_MODE_PARTIAL: u8 = 65;
 /// ESC/POS GS V mode byte for full cut
@@ -81,6 +83,47 @@ impl PrinterControl {
             t = 255;
         }
         vec![0x1B, 0x70, 0x01, t as u8, t as u8]
+    }
+
+    /// Procesa sección Feed
+    pub fn process_feed(feed: &Feed) -> Result<Vec<u8>, String> {
+        match feed.feed_type.as_str() {
+            "lines" => Ok(Self::feed_paper(feed.value)),
+            "dots" => Ok(Self::feed_paper_dots(feed.value)),
+            "line_feed" => Ok(Self::line_feed_multiple(feed.value as usize)),
+            _ => Err("Unknown feed type".to_string()),
+        }
+    }
+
+    /// Procesa sección Cut
+    pub fn process_cut(cut: &Cut, cut_paper_enabled: bool) -> Result<Vec<u8>, String> {
+        if !cut_paper_enabled {
+            return Ok(Self::line_feed_multiple(8));
+        }
+        let mode = match cut.mode.as_str() {
+            "full" | "partial_alt2" => CUT_MODE_FULL,
+            _ => CUT_MODE_PARTIAL,
+        };
+        Ok(Self::cut_paper_with_feed(mode, cut.feed))
+    }
+
+    /// Procesa sección Beep
+    pub fn process_beep(beep: &Beep, beep_enabled: bool) -> Result<Vec<u8>, String> {
+        if !beep_enabled {
+            return Ok(Vec::new());
+        }
+        let times = if beep.times == 0 { 1 } else { beep.times };
+        let duration = if beep.duration == 0 { 100 } else { beep.duration };
+        Ok(Self::beep_custom(times, duration))
+    }
+
+    /// Procesa sección Drawer
+    pub fn process_drawer(drawer: &Drawer) -> Result<Vec<u8>, String> {
+        if drawer.pin == 2 {
+            Ok(Self::open_cash_drawer_pin2(drawer.pulse_time))
+        } else {
+            Ok(Self::open_cash_drawer_pin5(drawer.pulse_time))
+        }
     }
 
     /// Emite un beep/sonido en la impresora

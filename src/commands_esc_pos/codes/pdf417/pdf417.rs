@@ -1,4 +1,5 @@
 use super::pdf417_error_correction::PDF417ErrorCorrection;
+use crate::models::print_sections::Pdf417 as Pdf417Section;
 
 /// Constructor de comandos para códigos PDF417
 /// 
@@ -183,7 +184,36 @@ impl PDF417 {
 
         output
     }
+}
 
+/// Procesa sección Pdf417 del modelo de impresión
+pub fn process_section(pdf417: &Pdf417Section) -> Result<Vec<u8>, String> {
+    let error_correction = match pdf417.error_correction {
+        0 => PDF417ErrorCorrection::Level0,
+        1 => PDF417ErrorCorrection::Level1,
+        2 => PDF417ErrorCorrection::Level2,
+        3 => PDF417ErrorCorrection::Level3,
+        4 => PDF417ErrorCorrection::Level4,
+        5 => PDF417ErrorCorrection::Level5,
+        6 => PDF417ErrorCorrection::Level6,
+        7 => PDF417ErrorCorrection::Level7,
+        8 => PDF417ErrorCorrection::Level8,
+        _ => PDF417ErrorCorrection::Level1,
+    };
+
+    let esc_pos_pdf417 = PDF417::new(pdf417.data.clone())
+        .set_columns(pdf417.columns)
+        .set_rows(pdf417.rows)
+        .set_height(pdf417.height)
+        .set_width(pdf417.width)
+        .set_error_correction(error_correction);
+
+    let mut data = esc_pos_pdf417.get_command();
+    data.extend_from_slice(b"\n");
+    Ok(data)
+}
+
+impl PDF417 {
     // /// Verifica si la impresora soporta PDF417
     // /// Retorna un comando de consulta (no todas las impresoras responden)
     // pub fn check_support() -> Vec<u8> {
