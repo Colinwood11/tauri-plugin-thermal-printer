@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 
+// ─── Paper Size ───────────────────────────────────────────────────────────────
+
 export type PaperSize =
   | 'Mm40'   // 40mm — ~21 chars/line
   | 'Mm44'   // 44mm — ~24 chars/line
@@ -36,23 +38,180 @@ export function getPaperSizePixelsWidth(paperSize: PaperSize): number {
   return PAPER_SIZE_PIXELS_WIDTH[paperSize]
 }
 
+// ─── Code Page (language/encoding) ───────────────────────────────────────────
+
+/**
+ * Character encoding page to use for printing.
+ * Select by language/region — no need to know ESC/POS code page numbers.
+ *
+ * | Value           | Code Page | Languages                                      |
+ * |-----------------|-----------|------------------------------------------------|
+ * | Default         | CP437     | ASCII only — no accented characters            |
+ * | Spanish         | CP850     | Spanish, French, Italian, German, Portuguese   |
+ * | French          | CP850     | Alias of Spanish                               |
+ * | Portuguese      | CP860     | Portuguese (includes ã, õ)                     |
+ * | CanadianFrench  | CP863     | Canadian French                                |
+ * | Nordic          | CP865     | Swedish, Norwegian, Danish, Finnish (å, ø, æ) |
+ * | WindowsLatin    | CP1252    | Wide Western European coverage (includes €)    |
+ * | Russian         | CP866     | Russian / Cyrillic                             |
+ * | EasternEurope   | CP852     | Polish, Czech, Slovak, Hungarian               |
+ */
+export type CodePage =
+  | 'Default'
+  | 'Spanish'
+  | 'French'
+  | 'Portuguese'
+  | 'CanadianFrench'
+  | 'Nordic'
+  | 'WindowsLatin'
+  | 'Russian'
+  | 'EasternEurope'
+
+// ─── Text style constants ─────────────────────────────────────────────────────
+
+/** Text alignment options */
+export type TextAlign = 'left' | 'center' | 'right'
+
+/** Text size options */
+export type TextSize = 'normal' | 'height' | 'width' | 'double'
+
+/** Font options */
+export type TextFont = 'A' | 'B' | 'C'
+
+/** Barcode text position options */
+export type BarcodeTextPosition = 'none' | 'above' | 'below' | 'both'
+
+/** Barcode type options */
+export type BarcodeType =
+  | 'UPC-A'
+  | 'UPC-E'
+  | 'EAN13'
+  | 'EAN8'
+  | 'CODE39'
+  | 'ITF'
+  | 'CODABAR'
+  | 'CODE93'
+  | 'CODE128'
+
+/** QR error correction level */
+export type QrErrorCorrection = 'L' | 'M' | 'Q' | 'H'
+
+/** Image size mode */
+export type ImageMode = 'normal' | 'double_width' | 'double_height' | 'quadruple'
+
+/** Feed type */
+export type FeedType = 'lines' | 'dots' | 'line_feed'
+
+/** Cut mode */
+export type CutMode = 'full' | 'partial' | 'partial_alt' | 'partial_alt2'
+
+// ─── Convenience style presets ────────────────────────────────────────────────
+
+export const TEXT_ALIGN = {
+  LEFT: 'left' as TextAlign,
+  CENTER: 'center' as TextAlign,
+  RIGHT: 'right' as TextAlign,
+} as const
+
+export const TEXT_SIZE = {
+  NORMAL: 'normal' as TextSize,
+  HEIGHT: 'height' as TextSize,
+  WIDTH: 'width' as TextSize,
+  DOUBLE: 'double' as TextSize,
+} as const
+
+export const TEXT_FONT = {
+  A: 'A' as TextFont,
+  B: 'B' as TextFont,
+  C: 'C' as TextFont,
+} as const
+
+export const BARCODE_TYPE = {
+  UPC_A: 'UPC-A' as BarcodeType,
+  UPC_E: 'UPC-E' as BarcodeType,
+  EAN13: 'EAN13' as BarcodeType,
+  EAN8: 'EAN8' as BarcodeType,
+  CODE39: 'CODE39' as BarcodeType,
+  ITF: 'ITF' as BarcodeType,
+  CODABAR: 'CODABAR' as BarcodeType,
+  CODE93: 'CODE93' as BarcodeType,
+  CODE128: 'CODE128' as BarcodeType,
+} as const
+
+export const BARCODE_TEXT_POSITION = {
+  NONE: 'none' as BarcodeTextPosition,
+  ABOVE: 'above' as BarcodeTextPosition,
+  BELOW: 'below' as BarcodeTextPosition,
+  BOTH: 'both' as BarcodeTextPosition,
+} as const
+
+export const QR_ERROR_CORRECTION = {
+  /** Low — 7% recovery */
+  L: 'L' as QrErrorCorrection,
+  /** Medium — 15% recovery (recommended default) */
+  M: 'M' as QrErrorCorrection,
+  /** Quartile — 25% recovery */
+  Q: 'Q' as QrErrorCorrection,
+  /** High — 30% recovery */
+  H: 'H' as QrErrorCorrection,
+} as const
+
+export const IMAGE_MODE = {
+  NORMAL: 'normal' as ImageMode,
+  DOUBLE_WIDTH: 'double_width' as ImageMode,
+  DOUBLE_HEIGHT: 'double_height' as ImageMode,
+  QUADRUPLE: 'quadruple' as ImageMode,
+} as const
+
+export const CUT_MODE = {
+  FULL: 'full' as CutMode,
+  PARTIAL: 'partial' as CutMode,
+} as const
+
+export const CODE_PAGE = {
+  /** CP437 — ASCII only, no accented characters */
+  DEFAULT: 'Default' as CodePage,
+  /** CP850 — Spanish, French, Italian, German */
+  SPANISH: 'Spanish' as CodePage,
+  /** CP850 — Alias of Spanish */
+  FRENCH: 'French' as CodePage,
+  /** CP860 — Portuguese (ã, õ) */
+  PORTUGUESE: 'Portuguese' as CodePage,
+  /** CP863 — Canadian French */
+  CANADIAN_FRENCH: 'CanadianFrench' as CodePage,
+  /** CP865 — Nordic languages (å, ø, æ) */
+  NORDIC: 'Nordic' as CodePage,
+  /** CP1252 — Wide Western European, includes € */
+  WINDOWS_LATIN: 'WindowsLatin' as CodePage,
+  /** CP866 — Russian / Cyrillic */
+  RUSSIAN: 'Russian' as CodePage,
+  /** CP852 — Eastern Europe (Polish, Czech, Slovak, Hungarian) */
+  EASTERN_EUROPE: 'EasternEurope' as CodePage,
+} as const
+
+// ─── Core interfaces ──────────────────────────────────────────────────────────
+
 export interface PrinterOptions {
   cut_paper: boolean
   beep: boolean
   open_cash_drawer: boolean
+  /** Character encoding for the printer. Default: 'Default' (ASCII only). */
+  code_page?: CodePage
 }
 
 export interface GlobalStyles {
   bold?: boolean
   underline?: boolean
-  align?: 'left' | 'center' | 'right'
+  align?: TextAlign
   italic?: boolean
   invert?: boolean
-  font?: 'A' | 'B' | 'C'
+  font?: TextFont
   rotate?: boolean
   upside_down?: boolean
-  size?: 'normal' | 'height' | 'width' | 'double'
+  size?: TextSize
 }
+
+// ─── Print section interfaces ─────────────────────────────────────────────────
 
 export interface Title {
   text: string
@@ -70,17 +229,19 @@ export interface Text {
 }
 
 export interface Feed {
-  feed_type: 'lines' | 'dots' | 'line_feed'
+  feed_type: FeedType
   value: number
 }
 
 export interface Cut {
-  mode: 'full' | 'partial' | 'partial_alt' | 'partial_alt2'
+  mode: CutMode
   feed: number
 }
 
 export interface Beep {
+  /** Number of beeps (1–9) */
   times: number
+  /** Duration per beep in ms (1–255) */
   duration: number
 }
 
@@ -99,51 +260,66 @@ export interface Table {
 
 export interface Qr {
   data: string
+  /** Module size 1–16 (default 6) */
   size: number
-  error_correction: 'L' | 'M' | 'Q' | 'H'
+  error_correction: QrErrorCorrection
   model: 1 | 2
-  align?: 'left' | 'center' | 'right'
+  align?: TextAlign
 }
 
 export interface Barcode {
   data: string
-  barcode_type: 'UPC-A' | 'UPC-E' | 'EAN13' | 'EAN8' | 'CODE39' | 'ITF' | 'CODABAR' | 'CODE93' | 'CODE128'
+  barcode_type: BarcodeType
+  /** Bar width 2–6 */
   width: number
+  /** Bar height in dots (1–255) */
   height: number
-  text_position: 'none' | 'above' | 'below' | 'both'
-  align?: 'left' | 'center' | 'right'
+  text_position: BarcodeTextPosition
+  align?: TextAlign
 }
 
 export interface DataMatrixModel {
   data: string
+  /** Module size 1–16 */
   size: number
 }
 
 export interface Pdf417 {
   data: string
+  /** Columns 0 (auto) or 1–30 */
   columns: number
+  /** Rows 0 (auto) or 3–90 */
   rows: number
+  /** Module width 2–8 */
   width: number
+  /** Row height 2–8 */
   height: number
+  /** Error correction level 0–8 */
   error_correction: number
 }
 
 export interface Image {
+  /** Base64 encoded image (with or without data URI prefix) */
   data: string
+  /** Max width in pixels. 0 = use full paper width. */
   max_width: number
-  align: 'left' | 'center' | 'right'
+  align: TextAlign
   dithering: boolean
-  size: 'normal' | 'double_width' | 'double_height' | 'quadruple'
+  size: ImageMode
 }
 
 export interface Logo {
+  /** NV memory key code (1–255) */
   key_code: number
-  mode: 'normal' | 'double_width' | 'double_height' | 'quadruple'
+  mode: ImageMode
 }
 
 export interface Line {
+  /** Single character to repeat across the paper width (default '-') */
   character: string
 }
+
+// ─── Union type ───────────────────────────────────────────────────────────────
 
 export type PrintSections =
   | { Title: Title }
@@ -162,6 +338,8 @@ export type PrintSections =
   | { Image: Image }
   | { Logo: Logo }
   | { Line: Line }
+
+// ─── Request interfaces ───────────────────────────────────────────────────────
 
 export interface PrintJobRequest {
   printer: string
@@ -197,6 +375,8 @@ export interface TestPrintRequest {
   test_invert?: boolean
   test_rotate?: boolean
 }
+
+// ─── Commands ─────────────────────────────────────────────────────────────────
 
 /**
  * Sends a print job to the specified thermal printer.

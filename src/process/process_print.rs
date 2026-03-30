@@ -44,6 +44,7 @@ impl ProcessPrint {
 
         let mut document: Vec<u8> = Vec::new();
         document.extend(PrinterControl::initialize());
+        document.extend(print_job.options.code_page.escpos_command());
 
         for section in &print_job.sections {
             let section_data = self.process_print_section(section)?;
@@ -64,10 +65,15 @@ impl ProcessPrint {
     }
 
     fn process_print_section(&mut self, section: &PrintSections) -> Result<Vec<u8>, String> {
+        let code_page = self.print_job_context.options.code_page;
         match section {
-            PrintSections::Title(title) => process_title(title, &self.current_styles),
-            PrintSections::Subtitle(subtitle) => process_subtitle(subtitle, &self.current_styles),
-            PrintSections::Text(text) => process_text(text, &self.current_styles),
+            PrintSections::Title(title) => {
+                process_title(title, &self.current_styles, code_page)
+            }
+            PrintSections::Subtitle(subtitle) => {
+                process_subtitle(subtitle, &self.current_styles, code_page)
+            }
+            PrintSections::Text(text) => process_text(text, &self.current_styles, code_page),
             PrintSections::Line(line) => process_line(
                 line,
                 &self.current_styles,
@@ -91,7 +97,9 @@ impl ProcessPrint {
                 barcode_cmd::process_section(barcode, &self.current_styles)
             }
             PrintSections::Pdf417(pdf417) => pdf417_cmd::process_section(pdf417),
-            PrintSections::DataMatrix(data_matrix) => data_matrix_cmd::process_section(data_matrix),
+            PrintSections::DataMatrix(data_matrix) => {
+                data_matrix_cmd::process_section(data_matrix)
+            }
             PrintSections::Image(imagen) => image_cmd::process_section(
                 imagen,
                 self.print_job_context.paper_size.pixels_width(),
@@ -100,6 +108,7 @@ impl ProcessPrint {
             PrintSections::Table(table) => table_cmd::process_section(
                 table,
                 self.print_job_context.paper_size.chars_per_line(),
+                code_page,
             ),
         }
     }

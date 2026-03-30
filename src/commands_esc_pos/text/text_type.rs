@@ -1,3 +1,4 @@
+use crate::commands_esc_pos::text::code_page::CodePage;
 use crate::models::print_sections::{GlobalStyles, Line, Subtitle, Text, Title};
 
 #[derive(Debug, Clone, Copy)]
@@ -180,27 +181,12 @@ pub fn get_styles_diff(old: &GlobalStyles, new: &GlobalStyles) -> Vec<u8> {
     output
 }
 
-/// Remueve tildes y caracteres especiales del texto
-pub fn remove_accents(text: &str) -> String {
-    text.chars()
-        .map(|c| match c {
-            'á' | 'Á' => 'a',
-            'é' | 'É' => 'e',
-            'í' | 'Í' => 'i',
-            'ó' | 'Ó' => 'o',
-            'ú' | 'Ú' => 'u',
-            'ñ' => 'n',
-            'Ñ' => 'N',
-            'ü' | 'Ü' => 'u',
-            '¿' => '?',
-            '¡' => '!',
-            _ => c,
-        })
-        .collect()
-}
-
 /// Procesa encabezado (centrado, doble tamaño)
-pub fn process_title(title: &Title, current_styles: &GlobalStyles) -> Result<Vec<u8>, String> {
+pub fn process_title(
+    title: &Title,
+    current_styles: &GlobalStyles,
+    code_page: CodePage,
+) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
     let base_styles = title.styles.as_ref().unwrap_or(current_styles).clone();
@@ -209,7 +195,7 @@ pub fn process_title(title: &Title, current_styles: &GlobalStyles) -> Result<Vec
     effective_styles.align = Some("center".to_string());
 
     output.extend_from_slice(&get_styles_diff(current_styles, &effective_styles));
-    output.extend_from_slice(remove_accents(&title.text).as_bytes());
+    output.extend(code_page.encode_str(&title.text));
     output.extend_from_slice(b"\n");
     output.extend_from_slice(&get_styles_diff(&effective_styles, current_styles));
 
@@ -220,6 +206,7 @@ pub fn process_title(title: &Title, current_styles: &GlobalStyles) -> Result<Vec
 pub fn process_subtitle(
     subtitle: &Subtitle,
     current_styles: &GlobalStyles,
+    code_page: CodePage,
 ) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
@@ -229,7 +216,7 @@ pub fn process_subtitle(
     effective_styles.bold = Some(true);
 
     output.extend_from_slice(&get_styles_diff(current_styles, &effective_styles));
-    output.extend_from_slice(remove_accents(&subtitle.text).as_bytes());
+    output.extend(code_page.encode_str(&subtitle.text));
     output.extend_from_slice(b"\n");
     output.extend_from_slice(&get_styles_diff(&effective_styles, current_styles));
 
@@ -237,13 +224,17 @@ pub fn process_subtitle(
 }
 
 /// Procesa texto con estilos libres
-pub fn process_text(text: &Text, current_styles: &GlobalStyles) -> Result<Vec<u8>, String> {
+pub fn process_text(
+    text: &Text,
+    current_styles: &GlobalStyles,
+    code_page: CodePage,
+) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
     let effective_styles = text.styles.as_ref().unwrap_or(current_styles).clone();
 
     output.extend_from_slice(&get_styles_diff(current_styles, &effective_styles));
-    output.extend_from_slice(remove_accents(&text.text).as_bytes());
+    output.extend(code_page.encode_str(&text.text));
     output.extend_from_slice(b"\n");
     output.extend_from_slice(&get_styles_diff(&effective_styles, current_styles));
 

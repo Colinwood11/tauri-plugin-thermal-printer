@@ -1,7 +1,12 @@
+use crate::commands_esc_pos::text::code_page::CodePage;
 use crate::models::print_sections::Table;
 
 /// Valida y procesa sección Table del modelo de impresión
-pub fn process_section(table: &Table, chars_per_line: i32) -> Result<Vec<u8>, String> {
+pub fn process_section(
+    table: &Table,
+    chars_per_line: i32,
+    code_page: CodePage,
+) -> Result<Vec<u8>, String> {
     let num_columns = table.columns as usize;
 
     if let Some(widths) = &table.column_widths {
@@ -34,10 +39,15 @@ pub fn process_section(table: &Table, chars_per_line: i32) -> Result<Vec<u8>, St
         }
     }
 
-    process_table(table, chars_per_line, table.truncate)
+    process_table(table, chars_per_line, table.truncate, code_page)
 }
 
-pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Vec<u8>, String> {
+pub fn process_table(
+    table: &Table,
+    max_width: i32,
+    truncate: bool,
+    code_page: CodePage,
+) -> Result<Vec<u8>, String> {
     if table.columns == 0 {
         return Ok(Vec::new());
     }
@@ -80,7 +90,7 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
                         .iter()
                         .filter_map(|&idx| column_widths.get(idx).copied())
                         .collect();
-                    let row_lines = process_row(&group_cells, &group_widths, truncate);
+                    let row_lines = process_row(&group_cells, &group_widths, truncate, code_page);
                     for line in row_lines {
                         output.extend(line.as_bytes());
                         output.extend(b"\n");
@@ -101,7 +111,7 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
                     .iter()
                     .filter_map(|&idx| column_widths.get(idx).copied())
                     .collect();
-                let row_lines = process_row(&group_cells, &group_widths, truncate);
+                let row_lines = process_row(&group_cells, &group_widths, truncate, code_page);
                 for line in row_lines {
                     output.extend(line.as_bytes());
                     output.extend(b"\n");
@@ -113,7 +123,7 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
         // Procesar header
         if let Some(header) = &table.header {
             if !header.is_empty() {
-                let header_lines = process_row(header, &column_widths, truncate);
+                let header_lines = process_row(header, &column_widths, truncate, code_page);
                 for line in header_lines {
                     output.extend(line.as_bytes());
                     output.extend(b"\n");
@@ -123,7 +133,7 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
 
         // Procesar body
         for row in &table.body {
-            let row_lines = process_row(row, &column_widths, truncate);
+            let row_lines = process_row(row, &column_widths, truncate, code_page);
             for line in row_lines {
                 output.extend(line.as_bytes());
                 output.extend(b"\n");
@@ -163,16 +173,18 @@ fn process_row(
     row: &[crate::models::print_sections::Text],
     column_widths: &[i32],
     truncate: bool,
+    code_page: CodePage,
 ) -> Vec<String> {
-    // Para cada celda, obtener las líneas
     let mut cell_lines: Vec<Vec<String>> = Vec::new();
     for (i, cell) in row.iter().enumerate() {
         let width = if i < column_widths.len() {
             column_widths[i]
         } else {
             10
-        }; // default
-        let text = remove_accents(&cell.text);
+        };
+        // Encode using the selected code page, then interpret as Latin-1 string for width calculation
+        let encoded = code_page.encode_str(&cell.text);
+        let text = String::from_utf8_lossy(&encoded).into_owned();
         let lines = if truncate {
             vec![truncate_text(&text, width as usize)]
         } else {
@@ -253,22 +265,3 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
     lines
 }
 
-fn remove_accents(text: &str) -> String {
-    text.chars()
-        .map(|c| match c {
-            'á' | 'à' | 'â' | 'ä' | 'ã' => 'a',
-            'é' | 'è' | 'ê' | 'ë' => 'e',
-            'í' | 'ì' | 'î' | 'ï' => 'i',
-            'ó' | 'ò' | 'ô' | 'ö' | 'õ' => 'o',
-            'ú' | 'ù' | 'û' | 'ü' => 'u',
-            'Á' | 'À' | 'Â' | 'Ä' | 'Ã' => 'A',
-            'É' | 'È' | 'Ê' | 'Ë' => 'E',
-            'Í' | 'Ì' | 'Î' | 'Ï' => 'I',
-            'Ó' | 'Ò' | 'Ô' | 'Ö' | 'Õ' => 'O',
-            'Ú' | 'Ù' | 'Û' | 'Ü' => 'U',
-            'ñ' => 'n',
-            'Ñ' => 'N',
-            _ => c,
-        })
-        .collect()
-}

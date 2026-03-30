@@ -1,3 +1,4 @@
+use crate::commands_esc_pos::text::code_page::CodePage;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -5,6 +6,10 @@ pub struct PrinterOptions {
     pub cut_paper: bool,
     pub beep: bool,
     pub open_cash_drawer: bool,
+    /// Página de código para la impresora. Define qué idioma/caracteres se usarán.
+    /// Por defecto: `CodePage::Default` (CP437, ASCII puro).
+    #[serde(default)]
+    pub code_page: CodePage,
 }
 
 impl Default for PrinterOptions {
@@ -13,6 +18,7 @@ impl Default for PrinterOptions {
             cut_paper: true,
             beep: false,
             open_cash_drawer: false,
+            code_page: CodePage::Default,
         }
     }
 }

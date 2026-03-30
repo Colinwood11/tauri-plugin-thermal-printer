@@ -41,6 +41,10 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [Logo](#logo)
   - [Line](#line)
   - [GlobalStyles](#globalstyles)
+- [TypeScript Constants & Helpers](#typescript-constants--helpers)
+  - [CodePage](#codepage)
+  - [Style constants](#style-constants)
+  - [Section builder helpers](#section-builder-helpers)
 - [Examples](#examples)
 
 ## How it Works
@@ -379,6 +383,7 @@ Returns `Promise<void>`. Resolves when printing completes successfully. **Throws
 | `options.cut_paper` | boolean | ❌ No | Cut paper after printing (default: `true`) |
 | `options.beep` | boolean | ❌ No | Beep after printing (default: `false`) |
 | `options.open_cash_drawer` | boolean | ❌ No | Open cash drawer after printing (default: `false`) |
+| `options.code_page` | CodePage | ❌ No | Character encoding for special characters (default: `"Default"`) — see [CodePage](#codepage) |
 | `sections` | array | ✅ Yes | Array of sections to print (see [Section Types](#section-types)) |
 
 #### Paper Sizes
@@ -864,6 +869,123 @@ Changes the current global styles that will be applied to subsequent text sectio
 - `rotate` (boolean, optional): Text rotated 90 degrees (default: `false`)
 - `upside_down` (boolean, optional): Upside down text (default: `false`)
 - `size` (string, optional): Size ("normal", "height", "width", "double") (default: `"normal"`)
+
+---
+
+## TypeScript Constants & Helpers
+
+The plugin exports typed constants and builder functions so you never have to type raw strings.
+
+### CodePage
+
+Set the character encoding once in `PrinterOptions.code_page` and all text sections (`Title`, `Subtitle`, `Text`, `Table`) will use it automatically.
+
+```typescript
+import { CODE_PAGE, type CodePage } from "tauri-plugin-thermal-printer";
+
+// In your PrintJobRequest:
+const options = {
+  cut_paper: true,
+  beep: false,
+  open_cash_drawer: false,
+  code_page: CODE_PAGE.SPANISH,  // enables á é í ó ú ñ ü ¿ ¡
+};
+```
+
+| Constant | Value | Code Page | Languages |
+|---|---|---|---|
+| `CODE_PAGE.DEFAULT` | `"Default"` | CP437 | ASCII only — no accented characters |
+| `CODE_PAGE.SPANISH` | `"Spanish"` | CP850 | **Spanish**, French, Italian, German, Portuguese |
+| `CODE_PAGE.FRENCH` | `"French"` | CP850 | Alias of Spanish |
+| `CODE_PAGE.PORTUGUESE` | `"Portuguese"` | CP860 | **Portuguese** (ã, õ) |
+| `CODE_PAGE.CANADIAN_FRENCH` | `"CanadianFrench"` | CP863 | Canadian French |
+| `CODE_PAGE.NORDIC` | `"Nordic"` | CP865 | Swedish, Norwegian, Danish, Finnish (å, ø, æ) |
+| `CODE_PAGE.WINDOWS_LATIN` | `"WindowsLatin"` | CP1252 | Wide Western European — includes € |
+| `CODE_PAGE.RUSSIAN` | `"Russian"` | CP866 | **Russian** / Cyrillic |
+| `CODE_PAGE.EASTERN_EUROPE` | `"EasternEurope"` | CP852 | **Polish**, Czech, Slovak, Hungarian |
+
+> **Note**: Without a `code_page`, accented characters (á, ñ, ü, etc.) will print as `?`. Set it once in `options` and it applies to the entire document.
+
+---
+
+### Style constants
+
+Instead of typing raw strings you can import typed constant objects:
+
+```typescript
+import {
+  TEXT_ALIGN,
+  TEXT_SIZE,
+  TEXT_FONT,
+  BARCODE_TYPE,
+  BARCODE_TEXT_POSITION,
+  QR_ERROR_CORRECTION,
+  IMAGE_MODE,
+  CUT_MODE,
+} from "tauri-plugin-thermal-printer";
+
+// Examples:
+const styles = {
+  align: TEXT_ALIGN.CENTER,   // "center"
+  size: TEXT_SIZE.DOUBLE,     // "double"
+  font: TEXT_FONT.B,          // "B"
+  bold: true,
+};
+
+const barcode = {
+  barcode_type: BARCODE_TYPE.EAN13,             // "EAN13"
+  text_position: BARCODE_TEXT_POSITION.BELOW,   // "below"
+};
+
+const qr = {
+  error_correction: QR_ERROR_CORRECTION.M,      // "M"
+};
+```
+
+| Export | Values |
+|---|---|
+| `TEXT_ALIGN` | `LEFT` `CENTER` `RIGHT` |
+| `TEXT_SIZE` | `NORMAL` `HEIGHT` `WIDTH` `DOUBLE` |
+| `TEXT_FONT` | `A` `B` `C` |
+| `BARCODE_TYPE` | `UPC_A` `UPC_E` `EAN13` `EAN8` `CODE39` `ITF` `CODABAR` `CODE93` `CODE128` |
+| `BARCODE_TEXT_POSITION` | `NONE` `ABOVE` `BELOW` `BOTH` |
+| `QR_ERROR_CORRECTION` | `L` `M` `Q` `H` |
+| `IMAGE_MODE` | `NORMAL` `DOUBLE_WIDTH` `DOUBLE_HEIGHT` `QUADRUPLE` |
+| `CUT_MODE` | `FULL` `PARTIAL` |
+
+---
+
+### Section builder helpers
+
+Short helper functions to build the most common section types without the enum wrapper boilerplate:
+
+```typescript
+import {
+  title, subtitle, text, line, feed, cut, globalStyles,
+  TEXT_ALIGN, TEXT_SIZE, CODE_PAGE,
+} from "tauri-plugin-thermal-printer";
+
+const sections = [
+  title("My Business"),
+  subtitle("Receipt #001"),
+  text("Thank you for your purchase!", { align: TEXT_ALIGN.CENTER }),
+  line("="),
+  text("Total: $50.00", { bold: true, size: TEXT_SIZE.DOUBLE }),
+  line("-"),
+  feed(3),
+  cut(),
+];
+```
+
+| Helper | Description |
+|---|---|
+| `title(text, styles?)` | Creates a `{ Title: ... }` section |
+| `subtitle(text, styles?)` | Creates a `{ Subtitle: ... }` section |
+| `text(text, styles?)` | Creates a `{ Text: ... }` section |
+| `line(character?)` | Creates a `{ Line: ... }` section (default `"-"`) |
+| `feed(value, type?)` | Creates a `{ Feed: ... }` section (default `"lines"`) |
+| `cut(mode?, feedLines?)` | Creates a `{ Cut: ... }` section (default `"partial"`, 4 lines) |
+| `globalStyles(styles)` | Creates a `{ GlobalStyles: ... }` section |
 
 ---
 

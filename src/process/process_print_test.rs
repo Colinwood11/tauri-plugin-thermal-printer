@@ -2,6 +2,7 @@ use crate::commands_esc_pos::codes::barcode::{Barcode, BarcodeTextPosition, Barc
 use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
 use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode};
+use crate::commands_esc_pos::text::code_page::CodePage;
 use crate::commands_esc_pos::text::table;
 use crate::commands_esc_pos::text::text_type::TextType;
 use crate::models::print_job_request::PrintJobRequest;
@@ -52,8 +53,9 @@ impl TestPrinter {
 
         self.print_job_context = request.clone();
 
-        // Inicializar impresora
+        // Inicializar impresora y seleccionar página de código
         document.extend(PrinterControl::initialize());
+        document.extend(request.printer_info.options.code_page.escpos_command());
         document.extend(PrinterControl::line_feed());
 
         // ==================== ENCABEZADO ====================
@@ -352,8 +354,9 @@ impl TestPrinter {
             self.print_job_context
                 .printer_info
                 .paper_size
-                .pixels_width() as i32,
+                .chars_per_line(),
             table.truncate,
+            CodePage::Default,
         )?);
         self.add_dashed_line(document);
 
