@@ -33,14 +33,14 @@ impl CodePage {
     }
 
     /// Convierte un string UTF-8 a bytes según la página de código seleccionada.
-    /// - `Page(n)`: los caracteres ASCII pasan directamente; los no-ASCII se reemplazan por `?`
-    ///   (el usuario debe pre-encodificar el texto si necesita caracteres especiales).
+    /// - `Page(n)`: caracteres U+0000–U+00FF pasan como su byte directamente (Latin-1);
+    ///   caracteres fuera de ese rango se reemplazan por `?`.
     /// - `AccentRemover`: convierte acentos y diacríticos a su equivalente ASCII.
     pub fn encode_str(self, text: &str) -> Vec<u8> {
         match self {
             CodePage::Page(_) => text
                 .chars()
-                .map(|c| if (c as u32) < 128 { c as u8 } else { b'?' })
+                .map(|c| if (c as u32) <= 0xFF { c as u8 } else { b'?' })
                 .collect(),
             CodePage::AccentRemover => {
                 let mut out = Vec::with_capacity(text.len());
