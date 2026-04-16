@@ -6,7 +6,7 @@ import {
 } from './index'
 
 const configuredCodePage: CodePage = {
-  codepage: 6,
+  code_page: 6,
   encode: ENCODE.ACCENT_REMOVER,
   use_gbk: false,
 }

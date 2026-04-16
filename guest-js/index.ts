@@ -53,7 +53,7 @@ export function getPaperSizePixelsWidth(paperSize: PaperSize): number {
  *   to GBK. It defaults to `false`.
  */
 export interface CodePage {
-  codepage: number
+  code_page: number
   encode?: Encode
   use_gbk?: boolean
 }

@@ -285,7 +285,7 @@ try { await test_thermal_printer({
       "beep": true,
       "open_cash_drawer": false,
       "code_page": {
-        "codepage": 6,
+        "code_page": 6,
         "encode": ENCODE.WINDOWS_1252,
         "use_gbk": false
       }
@@ -356,7 +356,7 @@ try { await print_thermal_printer({
     "beep": false,
     "open_cash_drawer": false,
     "code_page": {
-      "codepage": 6,
+      "code_page": 6,
       "encode": ENCODE.WINDOWS_1252,
       "use_gbk": false
     }
@@ -891,7 +891,7 @@ The plugin exports typed constants and builder functions so you never have to ty
 
 Set the character encoding once in `PrinterOptions.code_page` and all text sections (`Title`, `Subtitle`, `Text`, `Table`) will use it automatically.
 
-Each printer model assigns its own `ESC t n` values, so `CodePage.codepage` accepts the raw page number directly. `CodePage.encode` controls the host-side encoding used before bytes are sent to the printer. `CodePage.use_gbk` explicitly controls whether characters that the selected `encode` cannot represent should be retried with GBK before falling back to the original UTF-8 bytes.
+Each printer model assigns its own `ESC t n` values, so `CodePage.code_page` accepts the raw page number directly. `CodePage.encode` controls the host-side encoding used before bytes are sent to the printer. `CodePage.use_gbk` explicitly controls whether characters that the selected `encode` cannot represent should be retried with GBK before falling back to the original UTF-8 bytes.
 
 ```typescript
 import { ENCODE, type CodePage } from "tauri-plugin-thermal-printer";
@@ -901,7 +901,7 @@ const options = {
   beep: false,
   open_cash_drawer: false,
   code_page: {
-    codepage: 6,
+    code_page: 6,
     encode: ENCODE.WINDOWS_1252,
     use_gbk: false,
   }, // sends ESC t 6
@@ -912,7 +912,7 @@ const options = {
 
 | Field | Required | Description |
 |---|---|---|
-| `codepage` | ✅ Yes | Raw `ESC t n` value sent to the printer. |
+| `code_page` | ✅ Yes | Raw `ESC t n` value sent to the printer. |
 | `encode` | ❌ No | Host-side encoding strategy. Defaults to `ENCODE.ACCENT_REMOVER`. |
 | `use_gbk` | ❌ No | Retries GBK for characters that `encode` cannot represent before falling back to the original UTF-8 bytes. Defaults to `false`. |
 
@@ -1072,7 +1072,7 @@ const job: PrintJobRequest = {
     beep: false,
     open_cash_drawer: false,
     code_page: {
-      codepage: 6,
+      code_page: 6,
       encode: ENCODE.WINDOWS_1252,
       use_gbk: false,
     },
